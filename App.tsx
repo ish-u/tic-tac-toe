@@ -7,19 +7,17 @@ import {
   useEffect,
   useReducer,
   useRef,
-  useState,
 } from "react";
 import {
   Animated,
-  Button,
+  GestureResponderEvent,
   Pressable,
   StyleSheet,
   Text,
-  TouchableNativeFeedback,
   View,
 } from "react-native";
 
-// check winner
+// check winner function
 const checkWinner = (
   boardState: BoardState["boardState"]
 ): BoardState["winner"] => {
@@ -93,25 +91,53 @@ const checkWinner = (
   return "TIE";
 };
 
-// Context
-// state
+// App State
+// ======================================================
+// State
+type BoardBoxValue = 1 | 0 | -1;
 interface BoardState {
   boardState: BoardBoxValue[][];
   player: "X" | "O";
   winner: "X" | "O" | "TIE" | "IN_PROGRESS";
   bgColor: "steelblue" | "orangered";
+  position: {
+    x: number;
+    y: number;
+  };
 }
-// actions
+const initialState: BoardState = {
+  boardState: [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ],
+  player: "O",
+  winner: "IN_PROGRESS",
+  bgColor: "steelblue",
+  position: {
+    x: 0,
+    y: 0,
+  },
+};
+// ==============================================
+
+// Actions
+// ==============================================
 enum BoardActionType {
   PlayMove,
   ResetBoard,
+  ChangeBackgroundColor,
 }
 interface PlayMove {
   type: BoardActionType.PlayMove;
   payload: {
-    position: {
+    index: {
       i: 0 | 1 | 2;
       j: 0 | 1 | 2;
+    };
+    position: {
+      x: number;
+      y: number;
     };
   };
 }
@@ -119,39 +145,42 @@ interface ResetBoard {
   type: BoardActionType.ResetBoard;
   payload: {};
 }
-type BoardActions = PlayMove | ResetBoard;
-// redurcer
+interface ChangeBackgroundColor {
+  type: BoardActionType.ChangeBackgroundColor;
+  payload: {};
+}
+type BoardActions = PlayMove | ResetBoard | ChangeBackgroundColor;
+// ==============================================
+
+// Reducer Function
+// ==============================================
 export const BoardReducer = (
   state: BoardState,
   action: BoardActions
 ): BoardState => {
   switch (action.type) {
     case BoardActionType.PlayMove:
-      const { position } = action.payload;
+      const { index, position } = action.payload;
       const newBoardState: BoardState["boardState"] = JSON.parse(
         JSON.stringify(state.boardState)
       );
       if (
-        newBoardState[position.i][position.j] === 0 &&
+        newBoardState[index.i][index.j] === 0 &&
         state.winner === "IN_PROGRESS"
       ) {
         const move: BoardBoxValue = state.player === "O" ? 1 : -1;
         const nextPlayer: BoardState["player"] =
           state.player === "O" ? "X" : "O";
-        newBoardState[position.i][position.j] = move;
+        newBoardState[index.i][index.j] = move;
         const winner = checkWinner(newBoardState);
-        const bgColor =
-          winner === "IN_PROGRESS"
-            ? nextPlayer === "O"
-              ? "steelblue"
-              : "orangered"
-            : state.bgColor;
+        const newPosition =
+          winner === "IN_PROGRESS" ? position : state.position;
         return {
           ...state,
           boardState: newBoardState,
           player: nextPlayer,
           winner: winner,
-          bgColor: bgColor,
+          position: newPosition,
         };
       }
       return state;
@@ -165,55 +194,43 @@ export const BoardReducer = (
         winner: "IN_PROGRESS",
         player: "O",
         bgColor: "steelblue",
+        position: {
+          x: 0,
+          y: 0,
+        },
       };
+    case BoardActionType.ChangeBackgroundColor:
+      if (state.winner === "IN_PROGRESS") {
+        const bgColor = state.player === "O" ? "steelblue" : "orangered";
+        return { ...state, bgColor: bgColor };
+      }
+      return state;
   }
 };
-// context
-export const BoardContext = createContext<{
+// ==============================================
+
+// Context
+// ==============================================
+const BoardContext = createContext<{
   state: BoardState;
   dispatch: React.Dispatch<BoardActions>;
 }>({
-  state: {
-    boardState: [
-      [0, 0, 0],
-      [0, 0, 0],
-      [0, 0, 0],
-    ],
-    player: "O",
-    winner: "IN_PROGRESS",
-    bgColor: "steelblue",
-  },
+  state: initialState,
   dispatch: () => null,
 });
 
-// provider
-export const BoardProvider = ({
-  children,
-}: {
-  children: ReactNode;
-}): ReactElement => {
-  const [state, dispatch] = useReducer(BoardReducer, {
-    boardState: [
-      [0, 0, 0],
-      [0, 0, 0],
-      [0, 0, 0],
-    ],
-    player: "O",
-    winner: "IN_PROGRESS",
-    bgColor: "steelblue",
-  } as BoardState);
-
+const BoardProvider = ({ children }: { children: ReactNode }): ReactElement => {
+  const [state, dispatch] = useReducer(BoardReducer, initialState);
   return (
     <BoardContext.Provider value={{ state, dispatch }}>
       {children}
     </BoardContext.Provider>
   );
 };
+// ==============================================
 
-// Board
-// Players
-// Board Tile
-// checkWinning
+// Styles
+// ==============================================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -221,23 +238,23 @@ const styles = StyleSheet.create({
     backgroundColor: "steelblue",
     alignContent: "center",
     alignItems: "center",
+    z: 1,
   },
   board: {
     flexWrap: "wrap",
     flexDirection: "row",
     justifyContent: "center",
-    rowGap: 10,
-    columnGap: 10,
-    backgroundColor: "black",
     width: 320,
     height: 320,
+    z: 1,
   },
   boardBox: {
     justifyContent: "center",
     alignItems: "center",
     width: 100,
     height: 100,
-    backgroundColor: "steelblue",
+    borderColor: "black",
+    z: 1,
   },
   cross: {
     fontSize: 40,
@@ -256,7 +273,10 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+// ==============================================
 
+// Components
+// ==============================================
 const Cross = () => {
   return (
     <View>
@@ -275,13 +295,17 @@ const Circle = () => {
 
 const BoardBox = ({ i, j }: { i: 0 | 1 | 2; j: 0 | 1 | 2 }) => {
   const { state, dispatch } = useContext(BoardContext);
-  const playMove = () => {
+  const playMove = (e: GestureResponderEvent) => {
     dispatch({
       type: BoardActionType.PlayMove,
       payload: {
-        position: {
+        index: {
           i: i,
           j: j,
+        },
+        position: {
+          x: e.nativeEvent.pageX,
+          y: e.nativeEvent.pageY,
         },
       },
     });
@@ -289,7 +313,13 @@ const BoardBox = ({ i, j }: { i: 0 | 1 | 2; j: 0 | 1 | 2 }) => {
 
   return (
     <Pressable onPress={playMove}>
-      <View style={{ ...styles.boardBox, backgroundColor: state.bgColor }}>
+      <View
+        style={{
+          ...styles.boardBox,
+          borderBottomWidth: i <= 1 ? 10 : 0,
+          borderRightWidth: j <= 1 ? 10 : 0,
+        }}
+      >
         {state.boardState[i][j] === -1 && <Cross />}
         {state.boardState[i][j] === 0 && <></>}
         {state.boardState[i][j] === 1 && <Circle />}
@@ -298,11 +328,8 @@ const BoardBox = ({ i, j }: { i: 0 | 1 | 2; j: 0 | 1 | 2 }) => {
   );
 };
 
-type BoardBoxValue = 1 | 0 | -1;
-
 const Board = () => {
   const { state } = useContext(BoardContext);
-
   return (
     <View style={styles.board}>
       {state.boardState &&
@@ -338,72 +365,57 @@ const WinnerBanner = () => {
   );
 };
 
-// const Ripple = ({
-//   x,
-//   y,
-//   setBgColor,
-// }: {
-//   x: number;
-//   y: number;
-//   setBgColor: (value: string) => void;
-// }) => {
-//   const startValue = useRef(new Animated.Value(0)).current;
-//   const [color, setColor] = useState("#000");
-//   const toggleColor = () => {
-//     if (color === "#000") {
-//       setBgColor("#000");
-//       setColor("#fff");
-//     } else {
-//       setBgColor("#fff");
-//       setColor("#000");
-//     }
-//   };
-//   const endValue = 50;
-//   const duration = 1000;
-//   const positionStyle = StyleSheet.create({
-//     square: {
-//       height: 150,
-//       width: 150,
-//       backgroundColor: color,
-//       borderRadius: 1000,
-//       position: "absolute",
-//       top: y,
-//       left: x,
-//       zIndex: 10,
-//     },
-//   });
+const Ripple = () => {
+  const startValue = useRef(new Animated.Value(0)).current;
+  const { state, dispatch } = useContext(BoardContext);
+  const endValue = 10;
+  const duration = 250;
+  const positionStyle = StyleSheet.create({
+    ripple: {
+      height: 150,
+      width: 150,
+      backgroundColor:
+        state.bgColor === "orangered" ? "steelblue" : "orangered",
+      borderRadius: 1000,
+      position: "absolute",
+      top: state.position.y - 75,
+      left: state.position.x - 75,
+      zIndex: -1,
+    },
+  });
 
-//   useEffect(() => {
-//     console.log(color, x, y);
-//     Animated.timing(startValue, {
-//       toValue: endValue,
-//       duration: duration,
-//       useNativeDriver: true,
-//     }).start(() => {
-//       startValue.setValue(0.0045);
-//       toggleColor();
-//     });
-//   }, [x, y, startValue]);
+  useEffect(() => {
+    if (state.position.x !== 0 && state.position.y !== 0) {
+      console.log(state.position);
+      Animated.timing(startValue, {
+        toValue: endValue,
+        duration: duration,
+        useNativeDriver: true,
+      }).start(() => {
+        startValue.setValue(0);
+        dispatch({
+          type: BoardActionType.ChangeBackgroundColor,
+          payload: {},
+        });
+      });
+    }
+  }, [state.position]);
 
-//   return (
-//     <TouchableNativeFeedback>
-//       <View>
-//         <Animated.View
-//           style={[
-//             positionStyle.square,
-//             {
-//               transform: [
-//                 {
-//                   scale: startValue,
-//                 },
-//               ],
-//             },
-//           ]}
-//         ></Animated.View>
-//       </View>
-//     </TouchableNativeFeedback>
-//   );
-// };
+  return (
+    <Animated.View
+      style={[
+        positionStyle.ripple,
+        {
+          transform: [
+            {
+              scale: startValue,
+            },
+          ],
+        },
+      ]}
+    ></Animated.View>
+  );
+};
 
 const BoardView = () => {
   const { state } = useContext(BoardContext);
@@ -411,13 +423,17 @@ const BoardView = () => {
     <View style={{ ...styles.container, backgroundColor: state.bgColor }}>
       <WinnerBanner />
       <Board />
+      <Ripple />
     </View>
   );
 };
+// ==============================================
 
+// App
 export default function App() {
   return (
     <BoardProvider>
+      <StatusBar style="inverted" />
       <BoardView />
     </BoardProvider>
   );
