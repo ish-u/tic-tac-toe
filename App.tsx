@@ -1,5 +1,14 @@
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  ReactElement,
+  ReactNode,
+  useContext,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
   Button,
@@ -100,6 +109,83 @@ import {
 //   );
 // }
 
+// Context
+// state
+interface BoardState {
+  boardState: BoardBoxValue[][];
+  player: "X" | "O";
+}
+// actions
+enum BoardActionType {
+  PlayMove,
+}
+interface PlayMove {
+  type: BoardActionType.PlayMove;
+  payload: {
+    position: {
+      i: 0 | 1 | 2;
+      j: 0 | 1 | 2;
+    };
+  };
+}
+type BoardActions = PlayMove;
+// redurcer
+export const BoardReducer = (
+  state: BoardState,
+  action: BoardActions
+): BoardState => {
+  switch (action.type) {
+    case BoardActionType.PlayMove:
+      const { position } = action.payload;
+      const newBoardState = JSON.parse(JSON.stringify(state.boardState));
+      if (newBoardState[position.i][position.j] === 0) {
+        const move: BoardBoxValue = state.player === "O" ? 1 : -1;
+        const nextPlayer: BoardState["player"] =
+          state.player === "O" ? "X" : "O";
+        newBoardState[position.i][position.j] = move;
+        return { ...state, boardState: newBoardState, player: nextPlayer };
+      }
+      return state;
+  }
+};
+// context
+export const BoardContext = createContext<{
+  state: BoardState;
+  dispatch: React.Dispatch<BoardActions>;
+}>({
+  state: {
+    boardState: [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ],
+    player: "O",
+  },
+  dispatch: () => null,
+});
+
+// provider
+export const BoardProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}): ReactElement => {
+  const [state, dispatch] = useReducer(BoardReducer, {
+    boardState: [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ],
+    player: "O",
+  } as BoardState);
+
+  return (
+    <BoardContext.Provider value={{ state, dispatch }}>
+      {children}
+    </BoardContext.Provider>
+  );
+};
+
 // Board
 // Players
 // Board Tile
@@ -155,12 +241,26 @@ const Circle = () => {
   );
 };
 
-const BoardBox = ({ i, j }: { i: number; j: number }) => {
-  const [show, setShow] = useState(false);
+const BoardBox = ({ i, j }: { i: 0 | 1 | 2; j: 0 | 1 | 2 }) => {
+  const { state, dispatch } = useContext(BoardContext);
+  const playMove = () => {
+    dispatch({
+      type: BoardActionType.PlayMove,
+      payload: {
+        position: {
+          i: i,
+          j: j,
+        },
+      },
+    });
+  };
+
   return (
-    <Pressable onPress={() => setShow(true)}>
+    <Pressable onPress={playMove}>
       <View style={styles.boardBox}>
-        {show && <>{Math.random() * 10 > 5 ? <Cross /> : <Circle />}</>}
+        {state.boardState[i][j] === -1 && <Cross />}
+        {state.boardState[i][j] === 0 && <></>}
+        {state.boardState[i][j] === 1 && <Circle />}
       </View>
     </Pressable>
   );
@@ -169,27 +269,27 @@ const BoardBox = ({ i, j }: { i: number; j: number }) => {
 type BoardBoxValue = 1 | 0 | -1;
 
 const Board = () => {
-  const [boardState, setBoardState] = useState<BoardBoxValue[][]>([
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-  ]);
+  const { state } = useContext(BoardContext);
 
   return (
     <View style={styles.board}>
-      {boardState.map((row, i) =>
-        row.map((col, j) => <BoardBox i={i} j={j} key={i + j} />)
-      )}
+      {state.boardState &&
+        state.boardState.map((row, i) =>
+          row.map((col, j) => (
+            // @ts-ignore
+            <BoardBox i={i} j={j} key={i + j} />
+          ))
+        )}
     </View>
   );
 };
 
-// const;
-
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Board />
-    </View>
+    <BoardProvider>
+      <View style={styles.container}>
+        <Board />
+      </View>
+    </BoardProvider>
   );
 }
