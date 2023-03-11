@@ -109,15 +109,90 @@ import {
 //   );
 // }
 
+const checkWinner = (
+  boardState: BoardState["boardState"]
+): BoardState["winner"] => {
+  // Row Wise
+  for (let i = 0; i < 3; i++) {
+    if (
+      boardState[i][0] === -1 &&
+      boardState[i][1] === -1 &&
+      boardState[i][2] === -1
+    ) {
+      return "X";
+    }
+    if (
+      boardState[i][0] === 1 &&
+      boardState[i][1] === 1 &&
+      boardState[i][2] === 1
+    ) {
+      return "O";
+    }
+  }
+
+  // Col Wise
+  for (let i = 0; i < 3; i++) {
+    if (
+      boardState[0][i] === -1 &&
+      boardState[1][i] === -1 &&
+      boardState[2][i] === -1
+    ) {
+      return "X";
+    }
+
+    if (
+      boardState[0][i] === 1 &&
+      boardState[1][i] === 1 &&
+      boardState[2][i] === 1
+    ) {
+      return "O";
+    }
+  }
+
+  // Cross Wise
+  if (
+    (boardState[0][0] === -1 &&
+      boardState[1][1] === -1 &&
+      boardState[2][2] === -1) ||
+    (boardState[0][2] === -1 &&
+      boardState[1][1] === -1 &&
+      boardState[2][0] === -1)
+  ) {
+    return "X";
+  }
+
+  if (
+    (boardState[0][0] === 1 &&
+      boardState[1][1] === 1 &&
+      boardState[2][2] === 1) ||
+    (boardState[0][2] === 1 && boardState[1][1] === 1 && boardState[2][0] === 1)
+  ) {
+    return "O";
+  }
+
+  // In Progress
+  for (let row of boardState) {
+    for (let col of row) {
+      if (col === 0) {
+        return "IN_PROGRESS";
+      }
+    }
+  }
+
+  return "TIE";
+};
+
 // Context
 // state
 interface BoardState {
   boardState: BoardBoxValue[][];
   player: "X" | "O";
+  winner: "X" | "O" | "TIE" | "IN_PROGRESS";
 }
 // actions
 enum BoardActionType {
   PlayMove,
+  ResetBoard,
 }
 interface PlayMove {
   type: BoardActionType.PlayMove;
@@ -128,7 +203,11 @@ interface PlayMove {
     };
   };
 }
-type BoardActions = PlayMove;
+interface ResetBoard {
+  type: BoardActionType.ResetBoard;
+  payload: {};
+}
+type BoardActions = PlayMove | ResetBoard;
 // redurcer
 export const BoardReducer = (
   state: BoardState,
@@ -137,15 +216,32 @@ export const BoardReducer = (
   switch (action.type) {
     case BoardActionType.PlayMove:
       const { position } = action.payload;
-      const newBoardState = JSON.parse(JSON.stringify(state.boardState));
+      const newBoardState: BoardState["boardState"] = JSON.parse(
+        JSON.stringify(state.boardState)
+      );
       if (newBoardState[position.i][position.j] === 0) {
         const move: BoardBoxValue = state.player === "O" ? 1 : -1;
         const nextPlayer: BoardState["player"] =
           state.player === "O" ? "X" : "O";
         newBoardState[position.i][position.j] = move;
-        return { ...state, boardState: newBoardState, player: nextPlayer };
+        return {
+          ...state,
+          boardState: newBoardState,
+          player: nextPlayer,
+          winner: checkWinner(newBoardState),
+        };
       }
       return state;
+    case BoardActionType.ResetBoard:
+      return {
+        boardState: [
+          [0, 0, 0],
+          [0, 0, 0],
+          [0, 0, 0],
+        ],
+        winner: "IN_PROGRESS",
+        player: "O",
+      };
   }
 };
 // context
@@ -160,6 +256,7 @@ export const BoardContext = createContext<{
       [0, 0, 0],
     ],
     player: "O",
+    winner: "IN_PROGRESS",
   },
   dispatch: () => null,
 });
@@ -177,6 +274,7 @@ export const BoardProvider = ({
       [0, 0, 0],
     ],
     player: "O",
+    winner: "IN_PROGRESS",
   } as BoardState);
 
   return (
@@ -222,6 +320,14 @@ const styles = StyleSheet.create({
   circle: {
     fontSize: 40,
     fontWeight: "900",
+  },
+  winnerBanner: {
+    position: "absolute",
+    top: 100,
+  },
+  winnerText: {
+    fontSize: 40,
+    fontWeight: "500",
   },
 });
 
@@ -284,10 +390,33 @@ const Board = () => {
   );
 };
 
+const WinnerBanner = () => {
+  const { state, dispatch } = useContext(BoardContext);
+  useEffect(() => {
+    if (state.winner !== "IN_PROGRESS") {
+      const reset = setTimeout(() => {
+        dispatch({
+          type: BoardActionType.ResetBoard,
+          payload: {},
+        });
+      }, 2000);
+      return () => clearTimeout(reset);
+    }
+  }, [state.winner]);
+  return (
+    <View style={styles.winnerBanner}>
+      {state.winner === "O" && <Text style={styles.winnerText}> O Wins </Text>}
+      {state.winner === "X" && <Text style={styles.winnerText}> X Wins </Text>}
+      {state.winner === "TIE" && <Text style={styles.winnerText}> Tie </Text>}
+    </View>
+  );
+};
+
 export default function App() {
   return (
     <BoardProvider>
       <View style={styles.container}>
+        <WinnerBanner />
         <Board />
       </View>
     </BoardProvider>
