@@ -94,12 +94,16 @@ const checkWinner = (
 // App State
 // ======================================================
 // State
+enum PlayerColors {
+  XColor = "tomato",
+  OColor = "royalblue",
+}
 type BoardBoxValue = 1 | 0 | -1;
 interface BoardState {
   boardState: BoardBoxValue[][];
   player: "X" | "O";
   winner: "X" | "O" | "TIE" | "IN_PROGRESS";
-  bgColor: "steelblue" | "orangered";
+  bgColor: PlayerColors.XColor | PlayerColors.OColor;
   position: {
     x: number;
     y: number;
@@ -113,7 +117,7 @@ const initialState: BoardState = {
   ],
   player: "O",
   winner: "IN_PROGRESS",
-  bgColor: "steelblue",
+  bgColor: PlayerColors.XColor,
   position: {
     x: 0,
     y: 0,
@@ -193,7 +197,7 @@ export const BoardReducer = (
         ],
         winner: "IN_PROGRESS",
         player: "O",
-        bgColor: "steelblue",
+        bgColor: PlayerColors.OColor,
         position: {
           x: 0,
           y: 0,
@@ -201,7 +205,8 @@ export const BoardReducer = (
       };
     case BoardActionType.ChangeBackgroundColor:
       if (state.winner === "IN_PROGRESS") {
-        const bgColor = state.player === "O" ? "steelblue" : "orangered";
+        const bgColor =
+          state.player === "O" ? PlayerColors.OColor : PlayerColors.XColor;
         return { ...state, bgColor: bgColor };
       }
       return state;
@@ -235,7 +240,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    backgroundColor: "steelblue",
+    backgroundColor: PlayerColors.OColor,
     alignContent: "center",
     alignItems: "center",
     z: 1,
@@ -369,13 +374,15 @@ const Ripple = () => {
   const startValue = useRef(new Animated.Value(0)).current;
   const { state, dispatch } = useContext(BoardContext);
   const endValue = 10;
-  const duration = 250;
+  const duration = 200;
   const positionStyle = StyleSheet.create({
     ripple: {
       height: 150,
       width: 150,
       backgroundColor:
-        state.bgColor === "orangered" ? "steelblue" : "orangered",
+        state.bgColor === PlayerColors.XColor
+          ? PlayerColors.OColor
+          : PlayerColors.XColor,
       borderRadius: 1000,
       position: "absolute",
       top: state.position.y - 75,
@@ -386,7 +393,6 @@ const Ripple = () => {
 
   useEffect(() => {
     if (state.position.x !== 0 && state.position.y !== 0) {
-      console.log(state.position);
       Animated.timing(startValue, {
         toValue: endValue,
         duration: duration,
