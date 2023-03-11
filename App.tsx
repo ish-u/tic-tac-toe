@@ -3,14 +3,18 @@ import {
   createContext,
   ReactElement,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useReducer,
   useRef,
 } from "react";
 import {
+  Alert,
   Animated,
+  Easing,
   GestureResponderEvent,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -117,7 +121,7 @@ const initialState: BoardState = {
   ],
   player: "O",
   winner: "IN_PROGRESS",
-  bgColor: PlayerColors.XColor,
+  bgColor: PlayerColors.OColor,
   position: {
     x: 0,
     y: 0,
@@ -262,11 +266,11 @@ const styles = StyleSheet.create({
     z: 1,
   },
   cross: {
-    fontSize: 40,
+    fontSize: 75,
     fontWeight: "900",
   },
   circle: {
-    fontSize: 40,
+    fontSize: 75,
     fontWeight: "900",
   },
   winnerBanner: {
@@ -276,6 +280,18 @@ const styles = StyleSheet.create({
   winnerText: {
     fontSize: 40,
     fontWeight: "500",
+  },
+  link: {
+    position: "absolute",
+    bottom: 25,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  linkText: {
+    color: "snow",
+    fontWeight: "500",
+    fontSize: 10,
   },
 });
 // ==============================================
@@ -357,7 +373,7 @@ const WinnerBanner = () => {
           type: BoardActionType.ResetBoard,
           payload: {},
         });
-      }, 2000);
+      }, 1000);
       return () => clearTimeout(reset);
     }
   }, [state.winner]);
@@ -375,7 +391,7 @@ const Ripple = () => {
   const { state, dispatch } = useContext(BoardContext);
   const endValue = 10;
   const duration = 200;
-  const positionStyle = StyleSheet.create({
+  const rippleStyle = StyleSheet.create({
     ripple: {
       height: 150,
       width: 150,
@@ -396,6 +412,7 @@ const Ripple = () => {
       Animated.timing(startValue, {
         toValue: endValue,
         duration: duration,
+        easing: Easing.circle,
         useNativeDriver: true,
       }).start(() => {
         startValue.setValue(0);
@@ -410,7 +427,7 @@ const Ripple = () => {
   return (
     <Animated.View
       style={[
-        positionStyle.ripple,
+        rippleStyle.ripple,
         {
           transform: [
             {
@@ -433,14 +450,38 @@ const BoardView = () => {
     </View>
   );
 };
+
+const Link = () => {
+  const url = "https://github.com/ish-u";
+  const handlePress = useCallback(async () => {
+    // Checking if the link is supported for links with custom URL scheme.
+    const supported = await Linking.canOpenURL(url);
+
+    if (supported) {
+      // Opening the link with some app, if the URL scheme is "http" the web link should be opened
+      // by some browser in the mobile
+      await Linking.openURL(url);
+    } else {
+      Alert.alert(`Don't know how to open this URL: ${url}`);
+    }
+  }, [url]);
+  return (
+    <View style={styles.link}>
+      <Text onPress={handlePress} style={styles.linkText}>
+        github : ish-u
+      </Text>
+    </View>
+  );
+};
 // ==============================================
 
 // App
 export default function App() {
   return (
     <BoardProvider>
-      <StatusBar style="inverted" />
+      <StatusBar style="light" />
       <BoardView />
+      <Link />
     </BoardProvider>
   );
 }
