@@ -19,96 +19,7 @@ import {
   View,
 } from "react-native";
 
-// const Circle = ({ x, y, setBgColor }: { x: number; y: number; setBgColor: (value: string) => void }) => {
-//   const startValue = useRef(new Animated.Value(0)).current;
-//   const [color, setColor] = useState("#000");
-//   const toggleColor = () => {
-//     if (color === "#000") {
-//       setBgColor("#000");
-//       setColor("#fff");
-//     } else {
-//       setBgColor("#fff");
-//       setColor("#000");
-//     }
-//   };
-//   const endValue = 50;
-//   const duration = 1000;
-//   const positionStyle = StyleSheet.create({
-//     square: {
-//       height: 150,
-//       width: 150,
-//       backgroundColor: color,
-//       borderRadius: 1000,
-//       position: "absolute",
-//       top: y,
-//       left: x,
-//       zIndex: 10,
-//     },
-//   });
-
-//   useEffect(() => {
-//     console.log(color, x, y);
-//     Animated.timing(startValue, {
-//       toValue: endValue,
-//       duration: duration,
-//       useNativeDriver: true,
-//     }).start(() => {
-//       startValue.setValue(0.0045);
-//       toggleColor();
-//     });
-//   }, [x, y, startValue]);
-
-//   return (
-//     <TouchableNativeFeedback>
-//       <View>
-//         <Animated.View
-//           style={[
-//             positionStyle.square,
-//             {
-//               transform: [
-//                 {
-//                   scale: startValue,
-//                 },
-//               ],
-//             },
-//           ]}
-//         ></Animated.View>
-//       </View>
-//     </TouchableNativeFeedback>
-//   );
-// };
-
-// export function _App() {
-//   const [bgColor, setBgColor] = useState("#000");
-//   const [x, setX] = useState(100);
-//   const [y, setY] = useState(10);
-
-//   const styles = StyleSheet.create({
-//     container: {
-//       flex: 1,
-//       backgroundColor: bgColor,
-//       // alignItems: "center",
-//       // justifyContent: "center",
-//       borderColor: "black",
-//       zIndex: 10,
-//       // position: "relative",
-//     },
-//   });
-
-//   return (
-//     <Pressable
-//       style={styles.container}
-//       onPress={(e) => {
-//         setX(e.nativeEvent.pageX);
-//         setY(e.nativeEvent.pageY);
-//       }}
-//     >
-//       <Circle x={x} y={y} setBgColor={setBgColor} />
-//       {/* <StatusBar style="light" /> */}
-//     </Pressable>
-//   );
-// }
-
+// check winner
 const checkWinner = (
   boardState: BoardState["boardState"]
 ): BoardState["winner"] => {
@@ -188,6 +99,7 @@ interface BoardState {
   boardState: BoardBoxValue[][];
   player: "X" | "O";
   winner: "X" | "O" | "TIE" | "IN_PROGRESS";
+  bgColor: "steelblue" | "orangered";
 }
 // actions
 enum BoardActionType {
@@ -219,16 +131,27 @@ export const BoardReducer = (
       const newBoardState: BoardState["boardState"] = JSON.parse(
         JSON.stringify(state.boardState)
       );
-      if (newBoardState[position.i][position.j] === 0) {
+      if (
+        newBoardState[position.i][position.j] === 0 &&
+        state.winner === "IN_PROGRESS"
+      ) {
         const move: BoardBoxValue = state.player === "O" ? 1 : -1;
         const nextPlayer: BoardState["player"] =
           state.player === "O" ? "X" : "O";
         newBoardState[position.i][position.j] = move;
+        const winner = checkWinner(newBoardState);
+        const bgColor =
+          winner === "IN_PROGRESS"
+            ? nextPlayer === "O"
+              ? "steelblue"
+              : "orangered"
+            : state.bgColor;
         return {
           ...state,
           boardState: newBoardState,
           player: nextPlayer,
-          winner: checkWinner(newBoardState),
+          winner: winner,
+          bgColor: bgColor,
         };
       }
       return state;
@@ -241,6 +164,7 @@ export const BoardReducer = (
         ],
         winner: "IN_PROGRESS",
         player: "O",
+        bgColor: "steelblue",
       };
   }
 };
@@ -257,6 +181,7 @@ export const BoardContext = createContext<{
     ],
     player: "O",
     winner: "IN_PROGRESS",
+    bgColor: "steelblue",
   },
   dispatch: () => null,
 });
@@ -275,6 +200,7 @@ export const BoardProvider = ({
     ],
     player: "O",
     winner: "IN_PROGRESS",
+    bgColor: "steelblue",
   } as BoardState);
 
   return (
@@ -363,7 +289,7 @@ const BoardBox = ({ i, j }: { i: 0 | 1 | 2; j: 0 | 1 | 2 }) => {
 
   return (
     <Pressable onPress={playMove}>
-      <View style={styles.boardBox}>
+      <View style={{ ...styles.boardBox, backgroundColor: state.bgColor }}>
         {state.boardState[i][j] === -1 && <Cross />}
         {state.boardState[i][j] === 0 && <></>}
         {state.boardState[i][j] === 1 && <Circle />}
@@ -412,13 +338,87 @@ const WinnerBanner = () => {
   );
 };
 
+// const Ripple = ({
+//   x,
+//   y,
+//   setBgColor,
+// }: {
+//   x: number;
+//   y: number;
+//   setBgColor: (value: string) => void;
+// }) => {
+//   const startValue = useRef(new Animated.Value(0)).current;
+//   const [color, setColor] = useState("#000");
+//   const toggleColor = () => {
+//     if (color === "#000") {
+//       setBgColor("#000");
+//       setColor("#fff");
+//     } else {
+//       setBgColor("#fff");
+//       setColor("#000");
+//     }
+//   };
+//   const endValue = 50;
+//   const duration = 1000;
+//   const positionStyle = StyleSheet.create({
+//     square: {
+//       height: 150,
+//       width: 150,
+//       backgroundColor: color,
+//       borderRadius: 1000,
+//       position: "absolute",
+//       top: y,
+//       left: x,
+//       zIndex: 10,
+//     },
+//   });
+
+//   useEffect(() => {
+//     console.log(color, x, y);
+//     Animated.timing(startValue, {
+//       toValue: endValue,
+//       duration: duration,
+//       useNativeDriver: true,
+//     }).start(() => {
+//       startValue.setValue(0.0045);
+//       toggleColor();
+//     });
+//   }, [x, y, startValue]);
+
+//   return (
+//     <TouchableNativeFeedback>
+//       <View>
+//         <Animated.View
+//           style={[
+//             positionStyle.square,
+//             {
+//               transform: [
+//                 {
+//                   scale: startValue,
+//                 },
+//               ],
+//             },
+//           ]}
+//         ></Animated.View>
+//       </View>
+//     </TouchableNativeFeedback>
+//   );
+// };
+
+const BoardView = () => {
+  const { state } = useContext(BoardContext);
+  return (
+    <View style={{ ...styles.container, backgroundColor: state.bgColor }}>
+      <WinnerBanner />
+      <Board />
+    </View>
+  );
+};
+
 export default function App() {
   return (
     <BoardProvider>
-      <View style={styles.container}>
-        <WinnerBanner />
-        <Board />
-      </View>
+      <BoardView />
     </BoardProvider>
   );
 }
